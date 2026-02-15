@@ -1,0 +1,11 @@
+pyproject.toml
+src/skillgap_analyzer/__init__.py
+src/skillgap_analyzer/__main__.py
+src/skillgap_analyzer/analyzer.py
+src/skillgap_analyzer/cli.py
+src/skillgap_analyzer/schema.py
+src/skillgap_analyzer.egg-info/PKG-INFO
+src/skillgap_analyzer.egg-info/SOURCES.txt
+src/skillgap_analyzer.egg-info/dependency_links.txt
+src/skillgap_analyzer.egg-info/top_level.txt
+tests/test_analyzer.py
