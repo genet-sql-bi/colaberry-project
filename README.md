@@ -1,213 +1,153 @@
 # 🎓 Colaberry Skill Gap Analyzer
 
-A deterministic Python-based system that analyzes skill gaps between job descriptions and candidate skill profiles.
+A deterministic Python-based skill gap analyzer that compares job descriptions (JD) against candidate skills and returns structured, categorized results.
 
 ---
 
-## 📌 Executive Summary
+## 🎯 Objective
 
-The **Colaberry Skill Gap Analyzer** extracts, categorizes, and compares technical skills from multiple input sources to identify missing competencies between:
-
-- Job Descriptions (JD)
-- Candidate Profiles (Manual Input, Resume Text, LinkedIn Text)
-
-The system is designed to be:
-
-- ✅ Deterministic  
-- ✅ Testable  
-- ✅ Modular  
-- ✅ Extensible  
-- ✅ Production-safe  
+Identify missing technical skills between a job description and a candidate profile, then generate a clear structured output for review, reporting, or integration.
 
 ---
 
-# 🏗 System Architecture
+## 📥 Supported Candidate Inputs
 
+- **Manual Input** (user-entered skills)
+- **Resume Text** (copy/paste resume content)
+- **LinkedIn Text** (copy/paste profile content)
 
-
-```
-                    ┌────────────────────┐
-Manual Input  ──────┐                    │
-Resume Text   ──────┼──► Skill Extraction ├──►
-LinkedIn Text ──────┘                    │
-                    └────────────────────┘
-                                 │
-                                 ▼
-                        ┌────────────────┐
-JD Text ───────────────►│ JD Extraction  │
-                        └────────────────┘
-                                 │
-                                 ▼
-                        ┌────────────────┐
-                        │ Gap Engine     │
-                        │ (analyzer.py)  │
-                        └────────────────┘
-                                 │
-                                 ▼
-                        Structured Output
-```
-
-
-
-# 🎯 Features
-
-- Extract structured skills from:
-  - Job descriptions
-  - Manual skill input
-  - Resume text
-  - LinkedIn profile text
-- Categorize skills into:
-  - Programming Languages
-  - Tools
-  - Databases
-  - Cloud
-  - Other Technical Skills
-- Identify:
-  - Missing skills
-  - Matching skills
-  - Skill gaps
-- Deterministic processing (no randomness)
-- Fully testable with unit tests
+**Job Description Input:** JD text (copy/paste)
 
 ---
 
-# 📁 Project Structure
+## 🏗 System Architecture
 
-```
+```text
+                Candidate Inputs
+     -----------------------------------
+     Manual Input
+     Resume Text
+     LinkedIn Text
+                     │
+                     ▼
+              Skill Extraction
+                     │
+                     ▼
+JD Text ───► JD Extraction
+                     │
+                     ▼
+                Gap Engine
+                     │
+                     ▼
+             Structured Output
+
+
+⚙ Core Gap Engine
+
+The Gap Engine is implemented in:
+
+src/skillgap_analyzer/analyzer.py
+
+Responsibilities
+
+Skill normalization
+
+Category alignment
+
+Missing skill detection
+
+Structured result generation
+
+Deterministic comparison logic
+
+📂 Project Structure
+
 colaberry-project/
 │
 ├── src/skillgap_analyzer/
-│   ├── analyzer.py        # Core gap analysis engine
-│   ├── cli.py             # Command-line interface
-│   ├── schema.py          # Skill schema definitions
-│   └── main.py            # Entry point
+│   ├── analyzer.py
+│   ├── cli.py
+│   ├── schema.py
+│   └── main.py
 │
-├── tests/                 # Unit tests
+├── tests/
 │
-├── pyproject.toml         # Project configuration
-├── .gitignore             # Git ignore rules
-└── README.md              # Documentation
-```
+├── pyproject.toml
+├── .gitignore
+└── README.md
 
----
+🧠 Processing Flow
 
-# ⚙️ Installation
+Parse job description and extract required skills
 
-Create a virtual environment:
+Parse candidate input and extract candidate skills
 
-```bash
-python -m venv venv
-venv\Scripts\activate   # Windows
-# or
-source venv/bin/activate  # Mac/Linux
-```
+Normalize skills (standard naming)
 
-Install the project locally:
+Map skills to categories (e.g., Languages, Tools, DB, Cloud)
 
-```bash
-pip install -e .
-```
+Compute missing skills (JD - Candidate)
 
----
+Return structured output
 
-# 🚀 Usage
+📊 Output
 
-Run via CLI:
+The analyzer produces a structured result including:
 
-```bash
-python -m skillgap_analyzer.main
-```
+Required skills (from JD)
 
-Or use programmatically:
+Candidate skills (from input)
 
-```python
-from skillgap_analyzer.analyzer import SkillGapAnalyzer
+Missing skills
 
-jd_text = "We need Python, AWS, SQL"
-candidate_skills = ["Python", "SQL"]
+Categorized breakdown
 
-analyzer = SkillGapAnalyzer()
-result = analyzer.analyze(jd_text, candidate_skills)
+🔬 Design Principles
 
-print(result)
-```
+Deterministic (no randomness)
 
----
+Testable
 
-# 🧪 Testing
+Extensible
 
-Run unit tests:
+Production-safe structure
 
-```bash
-pytest
-```
+Modular architecture
 
-Testing principles:
+🏢 Enterprise Readiness
 
-- Deterministic outputs
-- No external API dependency
-- Reproducible results
-- Structured validation
+Designed to support future integration with:
 
----
+ATS / HR pipelines
 
-# 🎓 Academic Context
+Resume parsing systems
 
-This project demonstrates:
+Learning path recommendation engines
 
-- Structured schema modeling
-- Deterministic text categorization
-- Skill taxonomy design
-- Clean architecture separation
-- Unit-test-driven validation
-- Reproducible engineering practices
+API-based deployment
 
-It is suitable for academic evaluation in:
+🎓 Academic Value
 
-- Software Engineering
-- Data Engineering
-- Applied NLP (Deterministic approach)
-- Systems Design
+Demonstrates:
 
----
+Text processing and extraction
 
-# 🏢 Enterprise Context
+Rule-based gap comparison logic
 
-This system can serve as a foundation for:
+Modular Python package design
 
-- Workforce skill gap analysis
-- Recruitment intelligence systems
-- Resume screening automation
-- Learning path recommendation engines
-- Talent analytics dashboards
+Structured output modeling
 
-Designed for:
+Clean repository practices
 
-- HR platforms
-- Internal talent mobility systems
-- Enterprise recruitment pipelines
+🚀 Future Enhancements
 
----
+Automated resume parsing module
 
-# 🔮 Future Enhancements
+LinkedIn API integration
 
-- NLP-based skill extraction
-- Learning path auto-generation
-- REST API integration (FastAPI)
-- Database integration
-- Cloud deployment (AWS/Azure)
-- Analytics dashboard
+Skill similarity scoring
 
----
+Learning path recommendation engine
 
-# 📜 License
-
-For academic and demonstration purposes.
-
----
-
-# 👨‍💻 Genet
-
-Colaberry Skill Gap Analyzer Project  
-Python | Deterministic Systems | Structured Engineering
-
+REST API interface
