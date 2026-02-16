@@ -21,13 +21,10 @@ It is designed to be:
 - Extensible
 - Production-safe
 
----
+## 🎓 Project Structure
 
-## 🏗 Project Structure
 
-## 🏗️ Project Structure
 
-```text
 colaberry-project/
 │
 ├── src/skillgap_analyzer/
