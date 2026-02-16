@@ -24,3 +24,21 @@ It is designed to be:
 ---
 
 ## 🏗 Project Structure
+
+## 🏗️ Project Structure
+
+```text
+colaberry-project/
+│
+├── src/skillgap_analyzer/
+│   ├── analyzer.py
+│   ├── cli.py
+│   ├── schema.py
+│   └── main.py
+│
+├── tests/
+│
+├── pyproject.toml
+├── .gitignore
+└── README.md
+```
