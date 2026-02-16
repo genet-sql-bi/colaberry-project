@@ -21,10 +21,10 @@ It is designed to be:
 - Extensible
 - Production-safe
 
+
 ## 🎓 Project Structure
 
-
-
+```text
 colaberry-project/
 │
 ├── src/skillgap_analyzer/
@@ -38,4 +38,4 @@ colaberry-project/
 ├── pyproject.toml
 ├── .gitignore
 └── README.md
-```
+
