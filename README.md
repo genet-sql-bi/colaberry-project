@@ -1,155 +1,201 @@
-# 🎓 Colaberry Skill Gap Analyzer
+# Colaberry Skill Gap Analyzer
 
 A deterministic Python-based skill gap analyzer that compares job descriptions (JD) against candidate skills and returns structured, categorized results.
 
 ---
 
-## 🎯 Objective
+## Objective
 
 Identify missing technical skills between a job description and a candidate profile, then generate a clear structured output for review, reporting, or integration.
 
 ---
 
-## 📥 Supported Candidate Inputs
+## Supported Candidate Inputs
 
-- **Manual Input** (user-entered skills)
-- **Resume Text** (copy/paste resume content)
-- **LinkedIn Text** (copy/paste profile content)
+- **Manual Input** (`--skills`) — space-separated list of skills entered directly
+- **Resume Text** (`--resume`) — raw resume text or path to a `.txt` file
+- **LinkedIn Text** (`--linkedin`) — raw LinkedIn profile text or path to a `.txt` file
 
-**Job Description Input:** JD text (copy/paste)
+All three sources can be used together. Skills are extracted from resume/LinkedIn text using the same deterministic tokenization pipeline and merged with manually supplied skills before gap analysis runs.
 
 ---
 
-## 🏗 System Architecture
+## System Architecture
 
 ```text
-                Candidate Inputs
-     -----------------------------------
-     Manual Input
-     Resume Text
-     LinkedIn Text
-                     │
-                     ▼
-              Skill Extraction
-                     │
-                     ▼
-JD Text ───► JD Extraction
-                     │
-                     ▼
-                Gap Engine
-                     │
-                     ▼
-             Structured Output
+  Manual Skills       Resume Text       LinkedIn Text
+  (--skills)          (--resume)        (--linkedin)
+       │                   │                  │
+       │            extract_skills_from_text() │
+       │            [analyzer.py]       │      │
+       └───────────────────┴──────────────────┘
+                           │
+                    Merged Skills List
+                           │
+                           ▼
+         JD Text ──► _extract_jd_tokens()
+                     [analyzer.py]
+                           │
+                           ▼
+                      analyze_gap()
+                     [analyzer.py]
+                           │
+                           ▼
+                     SkillGapResult
+                  (categorized + prioritized)
+```
 
+---
 
-⚙ Core Gap Engine
+## Project Structure
 
-The Gap Engine is implemented in:
-
-src/skillgap_analyzer/analyzer.py
-
-Responsibilities
-
-Skill normalization
-
-Category alignment
-
-Missing skill detection
-
-Structured result generation
-
-Deterministic comparison logic
-
-📂 Project Structure
-
+```
 colaberry-project/
 │
 ├── src/skillgap_analyzer/
-│   ├── analyzer.py
-│   ├── cli.py
-│   ├── schema.py
-│   └── main.py
+│   ├── __init__.py
+│   ├── __main__.py        # Entry point: python -m skillgap_analyzer
+│   ├── analyzer.py        # Core logic: extract_skills_from_text(), analyze_gap()
+│   ├── cli.py             # CLI: argument parsing, _load_text(), skill merging
+│   └── schema.py          # Dataclasses: SkillGapInput, SkillCategory, SkillGapResult
 │
 ├── tests/
+│   └── test_analyzer.py   # Unit tests for analyzer and extraction logic
+│
+├── directives/            # SOPs and runbooks (human-readable)
+├── execution/             # Deterministic execution scripts
+├── agents/                # Agent persona definitions
+├── config/                # Environment configuration (no secrets)
 │
 ├── pyproject.toml
 ├── .gitignore
 └── README.md
+```
 
-🧠 Processing Flow
+---
 
-Parse job description and extract required skills
+## Core Modules
 
-Parse candidate input and extract candidate skills
+### `analyzer.py`
 
-Normalize skills (standard naming)
+| Function | Description |
+|---|---|
+| `extract_skills_from_text(text)` | Tokenizes free-form text (resume, LinkedIn). Returns a deduplicated, sorted list of normalized skill tokens. |
+| `analyze_gap(gap_input)` | Compares merged skills against JD tokens. Returns categorized and prioritized missing skills. |
+| `_extract_jd_tokens(jd_text)` | Tokenizes JD text using regex; counts unigrams and allowlisted bigrams; filters stopwords. |
+| `_normalize_user_skills(raw_skills)` | Lowercases, strips whitespace, splits on commas. |
+| `_categorize(skill)` | Maps skill to Technical / Soft Skill / Tool/Other. |
+| `_prioritize(frequency)` | Maps frequency to High / Medium / Low. |
 
-Map skills to categories (e.g., Languages, Tools, DB, Cloud)
+### `cli.py`
 
-Compute missing skills (JD - Candidate)
+| Item | Description |
+|---|---|
+| `_load_text(value)` | If `value` is a valid file path, reads it as UTF-8; otherwise returns `value` as raw text. |
+| `build_parser()` | Defines `--jd`, `--skills`, `--resume`, `--linkedin` arguments. |
+| `main()` | Orchestrates: loads inputs, merges skills from all sources, calls `analyze_gap()`, prints JSON. |
 
-Return structured output
+### `schema.py`
 
-📊 Output
+| Class | Fields |
+|---|---|
+| `SkillGapInput` | `jd_text: str`, `skills: list[str]` |
+| `SkillCategory` | `skill: str`, `category: str`, `priority: str` |
+| `SkillGapResult` | `categories: list[SkillCategory]` |
 
-The analyzer produces a structured result including:
+---
 
-Required skills (from JD)
+## Usage
 
-Candidate skills (from input)
+### Install (editable)
 
-Missing skills
+```bash
+pip install -e .
+```
 
-Categorized breakdown
+### Manual skills only
 
-🔬 Design Principles
+```bash
+python -m skillgap_analyzer \
+  --jd "We need a Python and AWS developer with SQL experience." \
+  --skills python sql
+```
 
-Deterministic (no randomness)
+### Resume text only
 
-Testable
+```bash
+python -m skillgap_analyzer \
+  --jd "We need a Python and AWS developer with SQL experience." \
+  --resume "Experienced developer with Python, SQL, and Docker skills."
+```
 
-Extensible
+### Resume from file
 
-Production-safe structure
+```bash
+python -m skillgap_analyzer \
+  --jd "We need a Python and AWS developer with SQL experience." \
+  --resume /path/to/resume.txt
+```
 
-Modular architecture
+### LinkedIn text only
 
-🏢 Enterprise Readiness
+```bash
+python -m skillgap_analyzer \
+  --jd "We need a Python and AWS developer with SQL experience." \
+  --linkedin "Senior engineer with AWS and Node experience."
+```
 
-Designed to support future integration with:
+### Combined: manual + resume + LinkedIn
 
-ATS / HR pipelines
+```bash
+python -m skillgap_analyzer \
+  --jd "We need a Python and AWS developer with SQL experience." \
+  --skills excel \
+  --resume "Experienced developer with Python and SQL skills." \
+  --linkedin "AWS and Node engineer with leadership experience."
+```
 
-Resume parsing systems
+### JD from stdin
 
-Learning path recommendation engines
+```bash
+cat job_description.txt | python -m skillgap_analyzer --skills python sql
+```
 
-API-based deployment
+### Example output
 
-🎓 Academic Value
+```json
+{
+  "categories": [
+    { "skill": "aws", "category": "Technical", "priority": "High" },
+    { "skill": "node", "category": "Technical", "priority": "Low" }
+  ]
+}
+```
 
-Demonstrates:
+---
 
-Text processing and extraction
+## Tests
 
-Rule-based gap comparison logic
+```bash
+python -m pytest -v
+```
 
-Modular Python package design
+| Test | What it validates |
+|---|---|
+| `test_analyze_gap_returns_result` | Smoke test — analyze_gap returns a non-empty result |
+| `test_gap_analysis_filters_and_categorizes` | Filtering, stopword removal, correct categorization |
+| `test_extract_skills_from_text_returns_tokens` | Extraction returns a non-empty lowercased list |
+| `test_extract_skills_from_text_deduplicates` | Duplicate tokens appear exactly once |
+| `test_extract_skills_from_text_removes_stopwords` | Stopwords never appear in extracted output |
+| `test_merged_skills_from_resume_excluded_from_gaps` | Resume-extracted skills are not reported as gaps |
+| `test_merged_skills_from_all_sources` | Manual + resume + LinkedIn all contribute to gap exclusion |
 
-Structured output modeling
+---
 
-Clean repository practices
+## Design Principles
 
-🚀 Future Enhancements
-
-Automated resume parsing module
-
-LinkedIn API integration
-
-Skill similarity scoring
-
-Learning path recommendation engine
-
-REST API interfaces
-
-
+- **Deterministic** — no randomness, no external API calls
+- **Pure core** — `analyze_gap()` and `extract_skills_from_text()` are pure functions (no I/O)
+- **Testable** — all core logic is importable and independently testable
+- **Layer-separated** — extraction logic lives in `analyzer.py`; orchestration lives in `cli.py`
+- **Intern-safe** — no destructive operations, no secrets, one-command test execution

@@ -70,6 +70,19 @@ def _prioritize(frequency: int) -> str:
     return "Low"
 
 
+def extract_skills_from_text(text: str) -> list[str]:
+    """Extract normalized skill-like tokens from free-form text (resume, LinkedIn, etc.).
+
+    Uses the same tokenization and stopword pipeline as the JD extractor.
+    Returns a deduplicated, sorted list of tokens — suitable for passing
+    directly into SkillGapInput.skills.
+
+    Pure function: no side-effects, no I/O.
+    """
+    counts = _extract_jd_tokens(text)
+    return sorted(counts.keys())
+
+
 def analyze_gap(gap_input: SkillGapInput) -> SkillGapResult:
     """Identify skills present in a JD but missing from the candidate's list.
 
