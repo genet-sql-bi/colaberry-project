@@ -2,18 +2,48 @@
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
+
+import pypdf
 
 from skillgap_analyzer.analyzer import analyze_gap, extract_skills_from_text
 from skillgap_analyzer.schema import SkillGapInput
 
 
+def _extract_pdf_text(path: Path) -> str:
+    """Extract text from all pages of a PDF and return as a single normalized string.
+
+    Whitespace is collapsed to single spaces for determinism.
+    Raises ValueError if no text can be extracted (e.g. scanned/image-only PDF).
+    """
+    reader = pypdf.PdfReader(str(path))
+    parts = [page.extract_text() or "" for page in reader.pages]
+    normalized = re.sub(r"\s+", " ", " ".join(parts)).strip()
+    if not normalized:
+        raise ValueError(
+            f"No text could be extracted from '{path}'. "
+            "The PDF may be scanned or image-only."
+        )
+    return normalized
+
+
 def _load_text(value: str) -> str:
-    """Return file contents if value is a valid file path; otherwise return value as-is."""
+    """Return file contents if value is a valid file path; otherwise return value as-is.
+
+    Supported file types: .txt (read directly), .pdf (text extracted via pypdf).
+    Any other file extension raises ValueError.
+    Non-path strings are returned unchanged as raw text.
+    """
     path = Path(value)
     if path.is_file():
-        return path.read_text(encoding="utf-8")
+        suffix = path.suffix.lower()
+        if suffix == ".txt":
+            return path.read_text(encoding="utf-8")
+        if suffix == ".pdf":
+            return _extract_pdf_text(path)
+        raise ValueError(f"Unsupported file type: {path.suffix}")
     return value
 
 
@@ -38,13 +68,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--resume",
         type=str,
         default=None,
-        help="Resume text or path to a resume .txt file.",
+        help="Resume text or path to a resume file (.txt or .pdf).",
     )
     parser.add_argument(
         "--linkedin",
         type=str,
         default=None,
-        help="LinkedIn profile text or path to a .txt file.",
+        help="LinkedIn profile text or path to a file (.txt or .pdf).",
     )
     return parser
 
