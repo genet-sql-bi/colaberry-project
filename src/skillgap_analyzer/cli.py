@@ -8,8 +8,7 @@ from pathlib import Path
 
 import pypdf
 
-from skillgap_analyzer.analyzer import analyze_gap, extract_skills_from_text
-from skillgap_analyzer.schema import SkillGapInput
+from skillgap_analyzer.service import analyze_skill_gap
 
 
 def _extract_pdf_text(path: Path) -> str:
@@ -83,31 +82,16 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
-    jd_text = args.jd if args.jd is not None else sys.stdin.read()
-
-    # Collect skills from all three sources and merge into one list.
-    all_skills: list[str] = list(args.skills)
-
+    input_data: dict = {
+        "jd_text": args.jd if args.jd is not None else sys.stdin.read(),
+        "skills": list(args.skills),
+    }
     if args.resume:
-        resume_text = _load_text(args.resume)
-        all_skills.extend(extract_skills_from_text(resume_text))
-
+        input_data["resume_text"] = _load_text(args.resume)
     if args.linkedin:
-        linkedin_text = _load_text(args.linkedin)
-        all_skills.extend(extract_skills_from_text(linkedin_text))
+        input_data["linkedin_text"] = _load_text(args.linkedin)
 
-    gap_input = SkillGapInput(jd_text=jd_text, skills=all_skills)
-    result = analyze_gap(gap_input)
-
-    print(json.dumps(
-        {
-            "categories": [
-                {"skill": c.skill, "category": c.category, "priority": c.priority}
-                for c in result.categories
-            ],
-        },
-        indent=2,
-    ))
+    print(json.dumps(analyze_skill_gap(input_data), indent=2))
 
 
 if __name__ == "__main__":
