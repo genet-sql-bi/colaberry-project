@@ -1,29 +1,118 @@
 """Pure skill-gap analysis logic — no I/O, no orchestration."""
 
+import io
 import re
 from collections import Counter
 
 from skillgap_analyzer.schema import SkillCategory, SkillGapInput, SkillGapResult
 
-STOPWORDS = frozenset({
+# ---------------------------------------------------------------------------
+# Blocklist — words that must never appear as skills
+# Covers generic English, HR/job-posting jargon, and job-title words.
+# ---------------------------------------------------------------------------
+BLOCKLIST = frozenset({
+    # Articles, conjunctions, prepositions
     "the", "and", "with", "for", "that", "this", "from", "are", "will",
     "you", "our", "your", "have", "has", "been", "being", "was", "were",
     "not", "but", "they", "their", "can", "able", "about", "into",
     "all", "also", "than", "more", "other", "some", "such", "must",
     "should", "would", "could", "may", "who", "which", "how", "what",
-    "need", "needs", "required", "experience", "data", "analyst", "used", "daily",
-    "looking", "seeking",
+    # HR / job-posting jargon
+    "need", "needs", "required", "experience", "used", "daily",
+    "looking", "seeking", "job", "role", "firm", "status", "global",
+    "any", "including", "existing", "employees", "privacy", "issues",
+    "changes", "workplaces", "where", "work", "best", "law",
+    "team", "teams", "business", "company", "position", "candidate",
+    "candidates", "applicant", "applicants", "joining", "strong",
+    "good", "great", "excellent", "proficient", "ability", "abilities",
+    "skills", "knowledge", "understanding", "support", "provide", "review",
+    "perform", "manage", "create", "build", "develop", "implement",
+    "ensure", "maintain", "track", "drive", "define", "help", "assist",
+    "using", "working", "various", "relevant", "current", "new", "key",
+    "core", "per", "well", "level", "highly", "next", "time", "type",
+    "way", "part", "both", "each", "every", "few", "most", "just",
+    "very", "often", "across", "between", "through", "within", "along",
+    "around", "against", "based", "given", "related", "wide", "full",
+    "high", "low", "large", "small", "open", "real", "live", "run",
+    "point", "area", "areas", "end", "start", "make", "take", "give",
+    "show", "know", "see", "think", "come", "get", "put", "let", "ask",
+    "join", "use", "plus", "own", "set", "list", "long", "short", "fast",
+    "day", "days", "year", "years", "month", "months", "number", "numbers",
+    # Generic domain words — not skills on their own
+    "data", "analyst", "engineer", "developer", "manager", "senior",
+    "junior", "lead", "head", "staff", "requires", "requires", "involves",
+    "awareness", "preferred", "ideal",
 })
 
-TECHNICAL_SKILLS = frozenset({"python", "sql", "aws", "docker", "react", "node"})
-SOFT_SKILLS = frozenset({"communication", "leadership", "collaboration"})
+# ---------------------------------------------------------------------------
+# Canonical skill vocabulary — the allowlist
+# Only tokens in SKILL_VOCAB (or SKILL_PHRASES) can appear in results.
+# ---------------------------------------------------------------------------
 
-SKILL_PHRASES = frozenset({
-    "machine learning", "data analysis", "project management", "deep learning"
+_TECHNICAL_SKILLS = frozenset({
+    # Programming languages
+    "python", "sql", "r", "java", "scala", "javascript", "typescript",
+    "golang", "bash", "powershell", "matlab", "ruby",
+    # Data / ML libraries
+    "pandas", "numpy", "matplotlib", "seaborn", "scipy", "sklearn",
+    "tensorflow", "pytorch", "keras", "xgboost", "lightgbm", "plotly",
+    # Data platforms and warehouses
+    "snowflake", "databricks", "bigquery", "redshift", "athena",
+    "spark", "hadoop", "kafka", "airflow", "dbt", "flink",
+    # Databases
+    "postgresql", "mysql", "sqlite", "mongodb", "redis", "cassandra",
+    "elasticsearch", "oracle",
+    # BI and visualization tools
+    "tableau", "excel", "looker", "grafana", "metabase", "powerbi",
+    # Cloud and DevOps
+    "aws", "azure", "gcp", "docker", "kubernetes", "terraform",
+    "git", "github", "gitlab", "jenkins",
+    # Web and backend frameworks
+    "react", "node", "nodejs", "flask", "fastapi", "django",
+    # General technical concepts
+    "statistics", "regression", "clustering", "classification", "forecasting",
+    "optimization", "modeling", "analytics", "etl", "database",
+    "visualization", "reporting", "dashboards", "pipeline",
+    "devops", "agile", "scrum",
 })
+
+_SOFT_SKILLS = frozenset({
+    "communication", "leadership", "collaboration", "teamwork",
+    "mentoring", "presentation", "documentation",
+})
+
+# All recognized single-token skills
+SKILL_VOCAB = _TECHNICAL_SKILLS | _SOFT_SKILLS
+
+# ---------------------------------------------------------------------------
+# Multi-word skill phrases
+# Detected on raw (unfiltered) tokens so that short words like "bi" are found.
+# ---------------------------------------------------------------------------
+
+_TECHNICAL_PHRASES = frozenset({
+    "machine learning", "deep learning", "data analysis", "data science",
+    "data engineering", "data visualization", "data modeling",
+    "natural language processing", "computer vision",
+    "business intelligence", "statistical analysis",
+    "time series", "feature engineering",
+})
+
+_SOFT_PHRASES = frozenset({
+    "project management", "product management",
+})
+
+_TOOL_PHRASES = frozenset({
+    "power bi",
+})
+
+SKILL_PHRASES = _TECHNICAL_PHRASES | _SOFT_PHRASES | _TOOL_PHRASES
 
 MAX_JD_SKILLS = 20
 
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
 
 def _normalize_user_skills(raw_skills: list[str]) -> set[str]:
     """Normalize user skills: split on commas, strip whitespace, lowercase."""
@@ -37,27 +126,36 @@ def _normalize_user_skills(raw_skills: list[str]) -> set[str]:
 
 
 def _extract_jd_tokens(jd_text: str) -> Counter:
-    """Tokenize JD text with regex, detect allowlisted phrases, count frequencies."""
+    """Tokenize text, detect allowlisted phrases, apply vocabulary filter.
+
+    Two-pass approach:
+      Pass 1 — phrase detection on raw tokens (before length/vocab filtering)
+               so that short-word phrases like 'power bi' are still caught.
+      Pass 2 — single-token counting, restricted to SKILL_VOCAB and not BLOCKLIST.
+
+    Pure function: no side-effects, no I/O.
+    """
     counts: Counter = Counter()
-    tokens = [
-        t for t in re.findall(r"[a-zA-Z]+", jd_text.lower())
-        if len(t) >= 3 and t not in STOPWORDS
-    ]
-    # Count unigrams
-    for token in tokens:
-        counts[token] += 1
-    # Count allowlisted bigrams
-    for i in range(len(tokens) - 1):
-        phrase = tokens[i] + " " + tokens[i + 1]
+    raw = re.findall(r"[a-zA-Z]+", jd_text.lower())
+
+    # Pass 1: detect multi-word skill phrases on unfiltered raw tokens
+    for i in range(len(raw) - 1):
+        phrase = raw[i] + " " + raw[i + 1]
         if phrase in SKILL_PHRASES:
             counts[phrase] += 1
+
+    # Pass 2: count single-token skills — must be in allowlist and not blocked
+    for token in raw:
+        if len(token) >= 3 and token in SKILL_VOCAB and token not in BLOCKLIST:
+            counts[token] += 1
+
     return counts
 
 
 def _categorize(skill: str) -> str:
-    if skill in TECHNICAL_SKILLS:
+    if skill in _TECHNICAL_SKILLS or skill in _TECHNICAL_PHRASES:
         return "Technical"
-    if skill in SOFT_SKILLS:
+    if skill in _SOFT_SKILLS or skill in _SOFT_PHRASES:
         return "Soft Skill"
     return "Tool/Other"
 
@@ -70,12 +168,27 @@ def _prioritize(frequency: int) -> str:
     return "Low"
 
 
-def extract_skills_from_text(text: str) -> list[str]:
-    """Extract normalized skill-like tokens from free-form text (resume, LinkedIn, etc.).
+def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
+    """Extract and normalize text from a PDF byte stream.
 
-    Uses the same tokenization and stopword pipeline as the JD extractor.
-    Returns a deduplicated, sorted list of tokens — suitable for passing
-    directly into SkillGapInput.skills.
+    Pure transformation: accepts bytes, returns a whitespace-normalized string.
+    Raises ValueError if no text can be extracted.
+    """
+    from pypdf import PdfReader  # imported here to keep the module importable without pypdf
+
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+    text = " ".join(page.extract_text() or "" for page in reader.pages).strip()
+    if not text:
+        raise ValueError("No text could be extracted from PDF")
+    return re.sub(r"\s+", " ", text)
+
+
+def extract_skills_from_text(text: str) -> list[str]:
+    """Extract recognized skill tokens from free-form text (resume, LinkedIn, etc.).
+
+    Only tokens present in SKILL_VOCAB or SKILL_PHRASES pass through —
+    generic English and HR jargon are excluded by the vocabulary filter.
+    Returns a deduplicated, sorted list suitable for passing into SkillGapInput.skills.
 
     Pure function: no side-effects, no I/O.
     """

@@ -57,4 +57,8 @@ build/
 **/.vs/
 *.slnx.sqlite
 
+.claude/
+frontend/node_modules/
+node_modules/
+
 

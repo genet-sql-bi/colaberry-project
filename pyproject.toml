@@ -9,7 +9,7 @@ requires-python = ">=3.10"
 dependencies = ["pypdf>=4.0"]
 
 [project.optional-dependencies]
-api = ["fastapi>=0.100", "uvicorn>=0.20"]
+api = ["fastapi>=0.100", "uvicorn>=0.20", "python-multipart>=0.0.9"]
 dev = ["httpx>=0.24"]
 
 [tool.setuptools.packages.find]
