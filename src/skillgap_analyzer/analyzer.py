@@ -4,7 +4,9 @@ import io
 import re
 from collections import Counter
 
+from config import get_skill_vocabulary_path
 from skillgap_analyzer.schema import SkillCategory, SkillGapInput, SkillGapResult
+from skill_loader import load_skill_vocabulary
 
 # ---------------------------------------------------------------------------
 # Blocklist — words that must never appear as skills
@@ -81,8 +83,29 @@ _SOFT_SKILLS = frozenset({
     "mentoring", "presentation", "documentation",
 })
 
+# Load external dynamic skill vocabulary if available.
+def _load_dynamic_skill_sets(path: str | None = None) -> tuple[set[str], set[str]]:
+    if path is None:
+        path = get_skill_vocabulary_path()
+    loaded: set[str] = set()
+    try:
+        loaded = load_skill_vocabulary(path)
+    except (FileNotFoundError, OSError):
+        loaded = set()
+
+    token_skills: set[str] = set()
+    phrase_skills: set[str] = set()
+    for entry in loaded:
+        if " " in entry:
+            phrase_skills.add(entry)
+        else:
+            token_skills.add(entry)
+    return token_skills, phrase_skills
+
+_EXTERNAL_SKILL_TOKENS, _EXTERNAL_SKILL_PHRASES = _load_dynamic_skill_sets()
+
 # All recognized single-token skills
-SKILL_VOCAB = _TECHNICAL_SKILLS | _SOFT_SKILLS
+SKILL_VOCAB = _TECHNICAL_SKILLS | _SOFT_SKILLS | _EXTERNAL_SKILL_TOKENS
 
 # ---------------------------------------------------------------------------
 # Multi-word skill phrases
@@ -105,7 +128,9 @@ _TOOL_PHRASES = frozenset({
     "power bi",
 })
 
-SKILL_PHRASES = _TECHNICAL_PHRASES | _SOFT_PHRASES | _TOOL_PHRASES
+SKILL_PHRASES = (
+    _TECHNICAL_PHRASES | _SOFT_PHRASES | _TOOL_PHRASES | _EXTERNAL_SKILL_PHRASES
+)
 
 MAX_JD_SKILLS = 20
 

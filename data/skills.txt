@@ -1,0 +1,8 @@
+python
+sql
+machine learning
+react
+aws
+docker
+kubernetes
+data analysis

@@ -304,3 +304,18 @@ def test_all_three_sources_merged_for_gap_analysis():
         assert covered not in gap_skills, f"'{covered}' should be covered across sources"
     # snowflake not covered by any source — should still be a gap
     assert "snowflake" in gap_skills
+
+
+def test_analyzer_graceful_missing_configured_skill_vocab(monkeypatch):
+    """Analyzer should still work if the configured skill vocab file is missing."""
+    monkeypatch.setenv("SKILL_VOCAB_PATH", "does-not-exist-skills.txt")
+    import importlib
+    import skillgap_analyzer.analyzer as analyzer
+
+    analyzer = importlib.reload(analyzer)
+    tokens = analyzer.extract_skills_from_text("Python SQL AWS Docker")
+    assert "python" in tokens
+    assert "sql" in tokens
+    assert "aws" in tokens
+    assert "docker" in tokens
+    # confirm missing file doesn't crash and still returns recognized skills
