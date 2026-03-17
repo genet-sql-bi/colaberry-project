@@ -86,6 +86,37 @@ def test_extract_skills_from_text_deduplicates():
     assert tokens.count("sql") == 1
 
 
+def test_extract_skills_from_text_preserves_phrase_matches_over_tokens():
+    text = "Expert in machine learning and data science with python"
+    tokens = extract_skills_from_text(text)
+    assert "machine learning" in tokens
+    assert "data science" in tokens
+    assert "machine" not in tokens
+    assert "learning" not in tokens
+    assert "data" not in tokens
+    assert "science" not in tokens
+    assert "python" in tokens
+
+
+def test_extract_skills_from_text_overlapping_phrase_suppression():
+    text = "Experience with machine learning and deep learning models"
+    tokens = extract_skills_from_text(text)
+    assert "machine learning" in tokens
+    assert "deep learning" in tokens
+    assert "machine" not in tokens
+    assert "learning" not in tokens
+
+
+def test_extract_skills_from_text_is_deterministic_for_phrase_and_tokens():
+    text = "Looking for machine learning, data science, and python expertise"
+    result1 = extract_skills_from_text(text)
+    result2 = extract_skills_from_text(text)
+    assert result1 == result2
+    assert "machine learning" in result1
+    assert "data science" in result1
+    assert "python" in result1
+
+
 def test_extract_skills_from_text_removes_stopwords():
     tokens = extract_skills_from_text(SAMPLE_RESUME)
     stopwords_that_must_not_appear = {
@@ -263,6 +294,16 @@ def test_skills_detected_from_linkedin_text():
     for expected in ["aws", "spark", "kafka", "python", "sql", "etl", "airflow", "dbt",
                      "communication", "collaboration"]:
         assert expected in tokens, f"'{expected}' not detected in LinkedIn text"
+
+
+def test_linkedin_only_ingestion_extracts_phrase_and_token_skills():
+    linkedin_text = "Senior data professional with machine learning, data science, and python expertise."
+    tokens = extract_skills_from_text(linkedin_text)
+    assert "machine learning" in tokens
+    assert "data science" in tokens
+    assert "python" in tokens
+    assert "machine" not in tokens
+    assert "learning" not in tokens
 
 
 def test_linkedin_text_extraction_excludes_non_skills():

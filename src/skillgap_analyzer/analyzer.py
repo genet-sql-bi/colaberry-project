@@ -153,24 +153,39 @@ def _normalize_user_skills(raw_skills: list[str]) -> set[str]:
 def _extract_jd_tokens(jd_text: str) -> Counter:
     """Tokenize text, detect allowlisted phrases, apply vocabulary filter.
 
-    Two-pass approach:
-      Pass 1 — phrase detection on raw tokens (before length/vocab filtering)
-               so that short-word phrases like 'power bi' are still caught.
-      Pass 2 — single-token counting, restricted to SKILL_VOCAB and not BLOCKLIST.
+    Phrase-first approach:
+      1) Detect multi-word phrases from SKILL_PHRASES, favoring longer phrase matches first.
+      2) Mark consumed raw token spans so overlapping single-token matches from the same span are suppressed.
+      3) Count single-token skills from SKILL_VOCAB on unused raw tokens.
 
     Pure function: no side-effects, no I/O.
     """
     counts: Counter = Counter()
     raw = re.findall(r"[a-zA-Z]+", jd_text.lower())
 
-    # Pass 1: detect multi-word skill phrases on unfiltered raw tokens
-    for i in range(len(raw) - 1):
-        phrase = raw[i] + " " + raw[i + 1]
-        if phrase in SKILL_PHRASES:
-            counts[phrase] += 1
+    # Build fast phrase lookup from token tuple to canonical phrase text.
+    phrase_lookup = {tuple(phrase.split()): phrase for phrase in SKILL_PHRASES}
+    phrase_lengths = sorted({len(tokens) for tokens in phrase_lookup}, reverse=True)
 
-    # Pass 2: count single-token skills — must be in allowlist and not blocked
-    for token in raw:
+    used_tokens: set[int] = set()
+    for i in range(len(raw)):
+        if i in used_tokens:
+            continue
+        for length in phrase_lengths:
+            if length < 2 or i + length > len(raw):
+                continue
+            span = tuple(raw[i : i + length])
+            phrase = phrase_lookup.get(span)
+            if phrase is None:
+                continue
+            counts[phrase] += 1
+            used_tokens.update(range(i, i + length))
+            break
+
+    # Count single-token skills that are allowed and not blocked, skipping phrase tokens.
+    for idx, token in enumerate(raw):
+        if idx in used_tokens:
+            continue
         if len(token) >= 3 and token in SKILL_VOCAB and token not in BLOCKLIST:
             counts[token] += 1
 
