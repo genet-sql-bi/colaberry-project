@@ -1,6 +1,13 @@
 """Typed structures for Skill Gap Analyzer inputs and outputs."""
 
 from dataclasses import dataclass, field
+from enum import Enum
+
+
+class Priority(str, Enum):
+    High = "High"
+    Medium = "Medium"
+    Low = "Low"
 
 
 @dataclass
@@ -17,7 +24,7 @@ class SkillCategory:
 
     skill: str
     category: str
-    priority: str
+    priority: Priority
 
 
 @dataclass

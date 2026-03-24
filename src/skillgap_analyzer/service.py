@@ -29,7 +29,11 @@ def analyze_skill_gap(input_data: dict) -> dict:
     result = analyze_gap(SkillGapInput(jd_text=input_data["jd_text"], skills=all_skills))
     return {
         "categories": [
-            {"skill": c.skill, "category": c.category, "priority": c.priority}
+            {
+                "skill": c.skill,
+                "category": c.category,
+                "priority": c.priority.value,
+            }
             for c in result.categories
         ]
     }

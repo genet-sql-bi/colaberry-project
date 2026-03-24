@@ -200,12 +200,15 @@ def _categorize(skill: str) -> str:
     return "Tool/Other"
 
 
-def _prioritize(frequency: int) -> str:
+from skillgap_analyzer.schema import Priority  # add at top or adjust import accordingly
+
+
+def _prioritize(frequency: int) -> Priority:
     if frequency >= 3:
-        return "High"
+        return Priority.High
     if frequency == 2:
-        return "Medium"
-    return "Low"
+        return Priority.Medium
+    return Priority.Low
 
 
 def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:

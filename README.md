@@ -47,6 +47,107 @@ All three sources can be used together. Skills are extracted from resume/LinkedI
 
 ---
 
+## Current System Overview
+
+This is a **deterministic skill gap analyzer** that:
+
+- Analyzes a **candidate's current skills** (State A) from their profile/resume
+- Extracts **target skills** (State B) from a job description or goal
+- Computes a **prioritized skill gap** with categorized missing skills
+- Generates a **structured gap report** with deterministic categorization + prioritization
+- Tracks **skill categories** per-analysis and globally (Skill Taxonomy)
+- Provides **categorized results** for review and reporting
+
+### Key Philosophy
+
+- **Deterministic categorization, structured output**: The gap structure (which skills, categories, priorities) is deterministic and reproducible. The output (examples, categorizations, priorities) is generated via pure logic.
+- **On-demand analysis**: Gap analysis runs when inputs are provided, not upfront. This ensures efficiency and allows input flexibility.
+- **Evidence-based assessment**: Gap results require proof of analysis (tokenization, filtering, categorization), not just raw inputs.
+
+### Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Backend | Python, CLI, dataclasses |
+| Analysis | Pure functions (no external APIs) |
+| Output | JSON structured results |
+| Deployment | Python package |
+
+---
+
+## Skill Taxonomy
+
+The taxonomy is a **hierarchical skill categorization** that powers everything: profiling, gap analysis, and result prioritization. It informs the categorization logic in `analyzer.py`.
+
+### Structure
+
+```json
+{
+  "categories": [
+    {"name": "Technical", "description": "Core technical skills like programming languages"},
+    {"name": "Soft Skill", "description": "Interpersonal and communication skills"},
+    {"name": "Tool", "description": "Software tools and platforms"},
+    {"name": "Other", "description": "Miscellaneous skills"}
+  ],
+  "priorities": [
+    {"level": "High", "description": "Frequently mentioned in JD, high impact"},
+    {"level": "Medium", "description": "Moderately mentioned, moderate impact"},
+    {"level": "Low", "description": "Rarely mentioned, low impact"}
+  ]
+}
+```
+
+### Hierarchy
+
+```
+Category (4 total)
+  └── Skill (prioritized by frequency)
+```
+
+### Priority Scale (High/Medium/Low)
+
+Every skill gap uses this same scale:
+
+| Level | Label | What it means |
+|-------|-------|--------------|
+| High | High | Critical for role, high frequency in JD |
+| Medium | Medium | Important but not essential, medium frequency |
+| Low | Low | Nice-to-have, low frequency |
+
+### Adapting the Taxonomy
+
+To extend for a different domain:
+
+1. Replace the categories JSON with your domain's skill types
+2. Keep the same structure: categories with descriptions
+3. Keep the same priority scale (or adapt labels)
+4. Skill prioritization follows frequency in JD text
+
+---
+
+## Gap Analysis Pipeline
+
+The pipeline generates a **prioritized skill gap report** with deterministic scaffolding.
+
+### Process
+
+1. **Profile Analysis**: Extract candidate skills from manual input, resume, or LinkedIn text using `extract_skills_from_text()`.
+2. **JD Tokenization**: Parse JD text into tokens using `_extract_jd_tokens()`, filtering stopwords and counting frequencies.
+3. **Gap Computation**: Compare merged candidate skills against JD tokens to identify missing skills.
+4. **Categorization**: Map each gap to Technical/Soft Skill/Tool/Other using `_categorize()`.
+5. **Prioritization**: Assign High/Medium/Low priority based on frequency using `_prioritize()`.
+6. **Output**: Return `SkillGapResult` with categorized and prioritized gaps.
+
+### Deterministic Rules
+
+- Path structure (steps 1-6) is fixed and reproducible.
+- No randomness; pure logic ensures same inputs yield same outputs.
+- Gaps are prioritized by JD frequency, categorized by skill type.
+
+---
+
+## Project Structure
+
 ## Project Structure
 
 ```
