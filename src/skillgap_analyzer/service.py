@@ -1,6 +1,6 @@
 """Programmatic orchestration entrypoint for the skill-gap pipeline."""
 
-from skillgap_analyzer.analyzer import analyze_gap, extract_skills_from_text
+from skillgap_analyzer.analyzer import analyze_gap, extract_skills_from_text, generate_curriculum_recommendation
 from skillgap_analyzer.schema import SkillGapInput
 
 
@@ -27,6 +27,7 @@ def analyze_skill_gap(input_data: dict) -> dict:
         all_skills.extend(extract_skills_from_text(linkedin_text))
 
     result = analyze_gap(SkillGapInput(jd_text=input_data["jd_text"], skills=all_skills))
+    curriculum = generate_curriculum_recommendation(result)
     return {
         "categories": [
             {
@@ -35,5 +36,28 @@ def analyze_skill_gap(input_data: dict) -> dict:
                 "priority": c.priority.value,
             }
             for c in result.categories
-        ]
+        ],
+        "curriculum": {
+            "total_modules": curriculum.total_modules,
+            "total_estimated_hours": curriculum.total_estimated_hours,
+            "learning_strategy": curriculum.learning_strategy,
+            "modules": [
+                {
+                    "sequence_number": m.sequence_number,
+                    "skill_name": m.skill_name,
+                    "skill_category": m.skill_category,
+                    "gap_priority": m.gap_priority.value,
+                    "estimated_hours": m.estimated_hours,
+                    "prerequisites": m.prerequisites,
+                    "learning_objectives": [
+                        {
+                            "objective": obj.objective,
+                            "target_level": obj.target_level,
+                        }
+                        for obj in m.learning_objectives
+                    ],
+                }
+                for m in curriculum.modules
+            ],
+        }
     }

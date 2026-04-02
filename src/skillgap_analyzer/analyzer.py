@@ -5,7 +5,11 @@ import re
 from collections import Counter
 
 from config import get_skill_vocabulary_path
-from skillgap_analyzer.schema import SkillCategory, SkillGapInput, SkillGapResult
+from skillgap_analyzer.schema import (
+    SkillCategory, SkillGapInput, SkillGapResult,
+    CurriculumRecommendation, LearningObjective, LearningPathModule,
+    Priority
+)
 from skill_loader import load_skill_vocabulary
 
 # ---------------------------------------------------------------------------
@@ -193,14 +197,15 @@ def _extract_jd_tokens(jd_text: str) -> Counter:
 
 
 def _categorize(skill: str) -> str:
+    """Categorize a skill as Technical, Soft Skill, or Tool/Other.
+
+    Pure function: no side-effects, no I/O.
+    """
     if skill in _TECHNICAL_SKILLS or skill in _TECHNICAL_PHRASES:
         return "Technical"
     if skill in _SOFT_SKILLS or skill in _SOFT_PHRASES:
         return "Soft Skill"
     return "Tool/Other"
-
-
-from skillgap_analyzer.schema import Priority  # add at top or adjust import accordingly
 
 
 def _prioritize(frequency: int) -> Priority:
@@ -209,6 +214,7 @@ def _prioritize(frequency: int) -> Priority:
     if frequency == 2:
         return Priority.Medium
     return Priority.Low
+
 
 
 def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
@@ -269,3 +275,91 @@ def analyze_gap(gap_input: SkillGapInput) -> SkillGapResult:
             break
 
     return SkillGapResult(categories=categories)
+
+
+def generate_curriculum_recommendation(gap_result: SkillGapResult) -> CurriculumRecommendation:
+    """Convert a SkillGapResult into a structured CurriculumRecommendation.
+
+    Deterministic transformation:
+      - Creates one LearningPathModule per skill in gap_result
+      - Generates learning objectives from skill name and category
+      - Assigns estimated_hours via fixed heuristic: High=10.0, Medium=5.0, Low=2.0
+      - Preserves priority-based ordering as sequence_number
+      - Uses empty prerequisites for Phase 1
+      - Sets learning_strategy as a deterministic summary string
+
+    Pure function: no side-effects, no I/O.
+    """
+    modules: list[LearningPathModule] = []
+    total_hours = 0.0
+
+    # Hours estimation map based on priority
+    hours_map = {
+        Priority.High: 10.0,
+        Priority.Medium: 5.0,
+        Priority.Low: 2.0,
+    }
+
+    for idx, category in enumerate(gap_result.categories, start=1):
+        estimated_hours = hours_map.get(category.priority, 2.0)
+        total_hours += estimated_hours
+
+        # Generate learning objectives deterministically from skill and category
+        objectives = []
+
+        # Objective 1: Understand fundamentals (target_level 1)
+        objectives.append(
+            LearningObjective(
+                objective=f"Understand {category.skill} fundamentals",
+                target_level=1,
+            )
+        )
+
+        # Objective 2: Apply in practice (target_level 2)
+        objectives.append(
+            LearningObjective(
+                objective=f"Apply {category.skill} in real-world scenarios",
+                target_level=2,
+            )
+        )
+
+        # Objective 3: Master advanced patterns (target_level 3, only for High priority)
+        if category.priority == Priority.High:
+            objectives.append(
+                LearningObjective(
+                    objective=f"Master advanced {category.skill} patterns and best practices",
+                    target_level=3,
+                )
+            )
+
+        # Create and append module
+        module = LearningPathModule(
+            skill_name=category.skill,
+            skill_category=category.category,
+            gap_priority=category.priority,
+            learning_objectives=objectives,
+            estimated_hours=estimated_hours,
+            prerequisites=[],  # Phase 1: no prerequisites
+            sequence_number=idx,
+        )
+        modules.append(module)
+
+    # Determine learning strategy summary
+    if not modules:
+        learning_strategy = "No gaps identified"
+    else:
+        high_priority_count = sum(
+            1 for m in modules if m.gap_priority == Priority.High
+        )
+        parts = []
+        if high_priority_count > 0:
+            parts.append(f"Master {high_priority_count} high-priority skills")
+        parts.append(f"Complete {len(modules)} modules total")
+        learning_strategy = "; ".join(parts)
+
+    return CurriculumRecommendation(
+        total_modules=len(modules),
+        total_estimated_hours=total_hours,
+        modules=modules,
+        learning_strategy=learning_strategy,
+    )

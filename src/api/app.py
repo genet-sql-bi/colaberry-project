@@ -20,6 +20,12 @@ app.add_middleware(
 
 @app.post("/analyze")
 def analyze(input_data: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Analyze skill gaps and generate curriculum recommendations.
+    
+    Returns a dict with:
+      - categories: list of skill gaps with categorization and priority
+      - curriculum: structured learning paths derived from gaps
+    """
     return analyze_skill_gap(input_data)
 
 
@@ -30,6 +36,12 @@ async def upload_analyze(
     resume_file: Optional[UploadFile] = File(None),
     linkedin_file: Optional[UploadFile] = File(None),
 ) -> dict[str, Any]:
+    """Analyze skill gaps from uploaded PDFs and generate curriculum recommendations.
+    
+    Returns a dict with:
+      - categories: list of skill gaps with categorization and priority
+      - curriculum: structured learning paths derived from gaps
+    """
     input_data: dict[str, Any] = {
         "jd_text": jd_text,
         "skills": [s.strip() for s in skills.split(",") if s.strip()],
