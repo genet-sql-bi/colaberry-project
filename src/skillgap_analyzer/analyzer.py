@@ -211,7 +211,7 @@ def _categorize(skill: str) -> str:
 def _prioritize(frequency: int) -> Priority:
     if frequency >= 3:
         return Priority.High
-    if frequency == 2:
+    if frequency >= 1:
         return Priority.Medium
     return Priority.Low
 
